@@ -1,5 +1,5 @@
 import datetime
-from .parser import parse_cisco_bgp_summary, parse_juniper_bgp_summary, parse_bgp_routes
+from .parser import parse_cisco_bgp_summary, parse_juniper_bgp_summary, parse_bgp_routes, parse_peer_routes
 
 # デモ用モックデータ
 DEMO_SUMMARY = {
@@ -24,6 +24,25 @@ DEMO_ROUTES = [
 ]
 
 
+def _build_device_params(config: dict, timeout: int = 20) -> dict:
+    key = config.get("ssh_key_path", "").strip()
+    params = {
+        "device_type":  config["device_type"],
+        "host":         config["host"],
+        "username":     config["username"],
+        "port":         config.get("port", 22),
+        "timeout":      timeout,
+        "conn_timeout": 10,
+    }
+    if key:
+        params["use_keys"]  = True
+        params["key_file"]  = key
+        params["password"]  = ""
+    else:
+        params["password"]  = config.get("password", "")
+    return params
+
+
 def fetch_bgp_summary(config: dict) -> dict:
     if config.get("device_type") == "demo":
         import time; time.sleep(0.3)
@@ -34,15 +53,7 @@ def fetch_bgp_summary(config: dict) -> dict:
     except ImportError:
         raise RuntimeError("netmiko がインストールされていません。pip install netmiko を実行してください。")
 
-    device = {
-        "device_type": config["device_type"],
-        "host":        config["host"],
-        "username":    config["username"],
-        "password":    config["password"],
-        "port":        config.get("port", 22),
-        "timeout":     20,
-        "conn_timeout": 10,
-    }
+    device = _build_device_params(config, timeout=20)
 
     with ConnectHandler(**device) as conn:
         dt = config["device_type"]
@@ -67,14 +78,7 @@ def fetch_bgp_routes(config: dict) -> list:
     except ImportError:
         raise RuntimeError("netmiko がインストールされていません。")
 
-    device = {
-        "device_type": config["device_type"],
-        "host":        config["host"],
-        "username":    config["username"],
-        "password":    config["password"],
-        "port":        config.get("port", 22),
-        "timeout":     30,
-    }
+    device = _build_device_params(config, timeout=30)
 
     with ConnectHandler(**device) as conn:
         if config["device_type"] == "juniper_junos":
@@ -83,3 +87,74 @@ def fetch_bgp_routes(config: dict) -> list:
             output = conn.send_command("show ip bgp", read_timeout=60)
 
     return parse_bgp_routes(output)
+
+
+DEMO_PEER_ADVERTISED = [
+    {"prefix": "192.0.2.0/24",   "next_hop": "0.0.0.0",  "metric": "0", "local_pref": "100", "weight": "32768", "as_path": "",        "origin": "i"},
+    {"prefix": "203.0.113.0/24", "next_hop": "0.0.0.0",  "metric": "0", "local_pref": "100", "weight": "32768", "as_path": "",        "origin": "i"},
+    {"prefix": "10.0.0.0/8",     "next_hop": "0.0.0.0",  "metric": "0", "local_pref": "100", "weight": "32768", "as_path": "",        "origin": "i"},
+]
+
+DEMO_PEER_RECEIVED = [
+    {"prefix": "8.8.8.0/24",  "next_hop": "10.0.0.2", "metric": "0", "local_pref": "100", "weight": "0", "as_path": "65001 15169", "origin": "i"},
+    {"prefix": "8.8.4.0/24",  "next_hop": "10.0.0.2", "metric": "0", "local_pref": "100", "weight": "0", "as_path": "65001 15169", "origin": "i"},
+    {"prefix": "1.1.1.0/24",  "next_hop": "10.0.0.2", "metric": "0", "local_pref": "100", "weight": "0", "as_path": "65001 13335", "origin": "i"},
+]
+
+
+def _is_ipv6(addr: str) -> bool:
+    import ipaddress
+    try:
+        ipaddress.IPv6Address(addr)
+        return True
+    except ValueError:
+        return False
+
+
+def fetch_peer_routes(config: dict, neighbor: str, route_type: str) -> list:
+    """route_type: 'advertised' or 'received'"""
+    if config.get("device_type") == "demo":
+        return DEMO_PEER_ADVERTISED if route_type == "advertised" else DEMO_PEER_RECEIVED
+
+    try:
+        from netmiko import ConnectHandler
+    except ImportError:
+        raise RuntimeError("netmiko がインストールされていません。")
+
+    device = _build_device_params(config, timeout=30)
+    dt = config["device_type"]
+    ipv6 = _is_ipv6(neighbor)
+
+    with ConnectHandler(**device) as conn:
+        if dt == "juniper_junos":
+            cmd = (f"show route advertising-protocol bgp {neighbor}"
+                   if route_type == "advertised"
+                   else f"show route receive-protocol bgp {neighbor}")
+            output = conn.send_command(cmd, read_timeout=60)
+
+        elif dt in ("cisco_ios", "cisco_xr"):
+            # Cisco IOS/XR: IPv4 は "show ip bgp", IPv6 は "show bgp ipv6 unicast"
+            if ipv6:
+                cmd = (f"show bgp ipv6 unicast neighbors {neighbor} advertised-routes"
+                       if route_type == "advertised"
+                       else f"show bgp ipv6 unicast neighbors {neighbor} routes")
+            else:
+                cmd = (f"show ip bgp neighbors {neighbor} advertised-routes"
+                       if route_type == "advertised"
+                       else f"show ip bgp neighbors {neighbor} routes")
+            output = conn.send_command(cmd, read_timeout=60)
+            # "show bgp" が通らない旧 IOS 向けフォールバック
+            if "Invalid input" in output or "% Unknown" in output:
+                cmd2 = (f"show bgp neighbors {neighbor} advertised-routes"
+                        if route_type == "advertised"
+                        else f"show bgp neighbors {neighbor} routes")
+                output = conn.send_command(cmd2, read_timeout=60)
+
+        else:
+            # FRR / VyOS / Linux: "show bgp neighbors X" は IPv4・IPv6 どちらも対応
+            cmd = (f"show bgp neighbors {neighbor} advertised-routes"
+                   if route_type == "advertised"
+                   else f"show bgp neighbors {neighbor} routes")
+            output = conn.send_command(cmd, read_timeout=60)
+
+    return parse_peer_routes(output)

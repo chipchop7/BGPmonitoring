@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from bgp.collector import fetch_bgp_summary, fetch_bgp_routes
+from bgp.collector import fetch_bgp_summary, fetch_bgp_routes, fetch_peer_routes
 
 app = FastAPI(title="BGP Monitor")
 
@@ -95,6 +95,7 @@ class RouterIn(BaseModel):
     port:        int = 22
     username:    str = ""
     password:    str = ""
+    ssh_key_path: str = ""          # 秘密鍵ファイルのパス（公開鍵認証用）
     device_type: str = "cisco_ios"  # cisco_ios | cisco_xr | juniper_junos | linux | demo
 
 
@@ -114,6 +115,28 @@ def add_router(body: RouterIn):
     # 追加直後に即ポーリング
     asyncio.get_event_loop().run_in_executor(None, poll_router, rid, routers[rid])
     return {"id": rid}
+
+
+@app.put("/api/routers/{rid}")
+def update_router(rid: str, body: RouterIn):
+    if rid not in routers:
+        raise HTTPException(404, "Router not found")
+    routers[rid] = body.model_dump()
+    save_routers()
+    asyncio.get_event_loop().run_in_executor(None, poll_router, rid, routers[rid])
+    return {"ok": True}
+
+
+@app.get("/api/routers/{rid}")
+def get_router(rid: str):
+    if rid not in routers:
+        raise HTTPException(404, "Router not found")
+    r = routers[rid]
+    return {"id": rid, "name": r["name"], "host": r["host"],
+            "port": r["port"], "username": r["username"],
+            "password": r.get("password", ""),
+            "ssh_key_path": r.get("ssh_key_path", ""),
+            "device_type": r["device_type"]}
 
 
 @app.delete("/api/routers/{rid}")
@@ -152,6 +175,19 @@ async def refresh_router(rid: str):
         raise HTTPException(404, "Router not found")
     await asyncio.to_thread(poll_router, rid, routers[rid])
     return {"ok": True}
+
+
+@app.get("/api/routers/{rid}/peers/{neighbor}/routes")
+async def get_peer_routes(rid: str, neighbor: str, type: str = "advertised"):
+    if rid not in routers:
+        raise HTTPException(404, "Router not found")
+    if type not in ("advertised", "received"):
+        raise HTTPException(400, "type must be 'advertised' or 'received'")
+    try:
+        routes = await asyncio.to_thread(fetch_peer_routes, routers[rid], neighbor, type)
+        return routes
+    except Exception as e:
+        raise HTTPException(500, str(e))
 
 
 @app.get("/api/routers/{rid}/routes")

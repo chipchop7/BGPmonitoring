@@ -87,13 +87,16 @@
       <!-- ルーティングテーブル -->
       <div class="bg-gray-900 rounded-xl border border-gray-800">
         <div class="px-5 py-3 border-b border-gray-800 flex items-center justify-between">
-          <h2 class="font-semibold text-sm">ルーティングテーブル</h2>
+          <div class="flex items-center gap-3">
+            <h2 class="font-semibold text-sm">ルーティングテーブル</h2>
+            <span id="route-count" class="text-xs text-gray-500"></span>
+          </div>
           <div class="flex gap-2 items-center">
-            <input id="route-filter" oninput="filterRoutes()" placeholder="プレフィックスで検索..." class="bg-gray-800 border border-gray-700 text-xs rounded px-2 py-1 text-gray-300 w-48 placeholder-gray-600">
-            <select id="route-router-select" class="bg-gray-800 border border-gray-700 text-xs rounded px-2 py-1 text-gray-300">
+            <input id="route-filter" oninput="onRouteFilter()" placeholder="プレフィックス / AS Path で検索..." class="bg-gray-800 border border-gray-700 text-xs rounded px-2 py-1 text-gray-300 w-56 placeholder-gray-600">
+            <select id="route-router-select" onchange="loadRoutes()" class="bg-gray-800 border border-gray-700 text-xs rounded px-2 py-1 text-gray-300">
               <option value="">ルーターを選択...</option>
             </select>
-            <button onclick="loadRoutes()" class="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-xs rounded transition-colors">取得</button>
+            <button onclick="loadRoutes()" class="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-xs rounded transition-colors">再取得</button>
           </div>
         </div>
         <div class="overflow-x-auto">
@@ -109,13 +112,111 @@
               </tr>
             </thead>
             <tbody id="route-table">
-              <tr><td colspan="6" class="text-center py-8 text-gray-600 text-xs">ルーターを選択して「取得」を押してください</td></tr>
+              <tr><td colspan="6" class="text-center py-8 text-gray-600 text-xs">ルーターを選択してください</td></tr>
             </tbody>
           </table>
+        </div>
+        <!-- ページネーション -->
+        <div id="route-pagination" class="hidden px-5 py-2 border-t border-gray-800 flex items-center justify-between">
+          <span id="route-page-info" class="text-xs text-gray-500"></span>
+          <div class="flex gap-1">
+            <button onclick="routePageStep(-1)" id="route-prev"
+              class="px-3 py-1 text-xs rounded bg-gray-800 hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">← 前へ</button>
+            <button onclick="routePageStep(1)" id="route-next"
+              class="px-3 py-1 text-xs rounded bg-gray-800 hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">次へ →</button>
+          </div>
         </div>
       </div>
     </div>
   </main>
+</div>
+
+<!-- ピア広報モーダル -->
+<div id="peer-modal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+  <div class="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-3xl max-h-[80vh] flex flex-col">
+    <div class="px-5 py-4 border-b border-gray-800 flex items-center justify-between flex-shrink-0">
+      <div>
+        <h3 class="font-semibold text-sm" id="peer-modal-title">ピア詳細</h3>
+        <p class="text-xs text-gray-500 mt-0.5" id="peer-modal-sub"></p>
+      </div>
+      <button onclick="closePeerModal()" class="text-gray-500 hover:text-gray-300 text-xl leading-none">✕</button>
+    </div>
+    <div class="flex gap-1 px-5 py-2 border-b border-gray-800 flex-shrink-0">
+      <button onclick="loadPeerRoutes('advertised')" id="tab-advertised"
+        class="px-3 py-1.5 text-xs rounded-lg bg-blue-600 text-white transition-colors">広報ルート（送信）</button>
+      <button onclick="loadPeerRoutes('received')" id="tab-received"
+        class="px-3 py-1.5 text-xs rounded-lg text-gray-400 hover:bg-gray-800 transition-colors">受信ルート</button>
+    </div>
+    <div class="overflow-auto flex-1">
+      <table class="w-full text-sm">
+        <thead class="sticky top-0 bg-gray-900">
+          <tr class="text-xs text-gray-500 border-b border-gray-800">
+            <th class="text-left px-5 py-2">プレフィックス</th>
+            <th class="text-left px-4 py-2">ネクストホップ</th>
+            <th class="text-left px-4 py-2">AS Path</th>
+            <th class="text-right px-4 py-2">LocPrf</th>
+            <th class="text-right px-4 py-2">MED</th>
+            <th class="text-center px-4 py-2 pr-5">Origin</th>
+          </tr>
+        </thead>
+        <tbody id="peer-route-table">
+          <tr><td colspan="6" class="text-center py-8 text-gray-600 text-xs">読み込み中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="px-5 py-2 border-t border-gray-800 text-xs text-gray-500 flex-shrink-0" id="peer-route-count"></div>
+  </div>
+</div>
+
+<!-- ルーター編集モーダル -->
+<div id="edit-modal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+  <div class="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-md p-6">
+    <h3 class="text-lg font-semibold mb-4">ルーターを編集</h3>
+    <form id="edit-form" class="space-y-3">
+      <input type="hidden" id="edit-id">
+      <div class="grid grid-cols-2 gap-3">
+        <div class="col-span-2">
+          <label class="block text-xs text-gray-400 mb-1">表示名 *</label>
+          <input id="edit-name" name="name" required class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+        <div>
+          <label class="block text-xs text-gray-400 mb-1">ホスト / IP *</label>
+          <input id="edit-host" name="host" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+        <div>
+          <label class="block text-xs text-gray-400 mb-1">ポート</label>
+          <input id="edit-port" name="port" type="number" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+        <div>
+          <label class="block text-xs text-gray-400 mb-1">ユーザー名</label>
+          <input id="edit-username" name="username" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+        <div>
+          <label class="block text-xs text-gray-400 mb-1">パスワード（空白で変更なし）</label>
+          <input id="edit-password" name="password" type="password" placeholder="••••••••" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+        <div class="col-span-2">
+          <label class="block text-xs text-gray-400 mb-1">秘密鍵ファイルパス（公開鍵認証）</label>
+          <input id="edit-ssh_key_path" name="ssh_key_path" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono" placeholder="C:\Users\karaa\.ssh\id_rsa">
+          <p class="text-xs text-gray-600 mt-1">入力するとパスワードの代わりに鍵認証を使用します</p>
+        </div>
+        <div class="col-span-2">
+          <label class="block text-xs text-gray-400 mb-1">デバイスタイプ</label>
+          <select id="edit-device_type" name="device_type" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="cisco_ios">Cisco IOS / IOS-XE</option>
+            <option value="cisco_xr">Cisco IOS-XR</option>
+            <option value="juniper_junos">Juniper JunOS</option>
+            <option value="linux">Linux (FRRouting)</option>
+            <option value="demo">デモ（実機不要）</option>
+          </select>
+        </div>
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button type="button" onclick="closeEditModal()" class="flex-1 py-2 border border-gray-700 rounded-lg text-sm hover:bg-gray-800 transition-colors">キャンセル</button>
+        <button type="submit" class="flex-1 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium transition-colors">保存</button>
+      </div>
+    </form>
+  </div>
 </div>
 
 <!-- ルーター追加モーダル -->
@@ -154,6 +255,11 @@
             <option value="demo">デモ（実機不要）</option>
           </select>
         </div>
+        <div class="col-span-2">
+          <label class="block text-xs text-gray-400 mb-1">秘密鍵ファイルパス（公開鍵認証）</label>
+          <input name="ssh_key_path" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono" placeholder="">
+          <p class="text-xs text-gray-600 mt-1">入力するとパスワードの代わりに鍵認証を使用します</p>
+        </div>
       </div>
       <div class="flex gap-3 pt-2">
         <button type="button" onclick="closeAddModal()" class="flex-1 py-2 border border-gray-700 rounded-lg text-sm hover:bg-gray-800 transition-colors">キャンセル</button>
@@ -167,6 +273,9 @@
 <script>
 let allStatus = []
 let allRoutes = []
+let filteredRoutes = []
+let routePage = 0
+const ROUTE_PER_PAGE = 200
 let selectedRouter = null
 
 // ── データ取得 ─────────────────────────────────────────
@@ -191,12 +300,15 @@ async function fetchAlerts() {
 async function loadRoutes() {
   const rid = document.getElementById('route-router-select').value
   if (!rid) return
+  routePage = 0
+  document.getElementById('route-count').textContent = ''
+  document.getElementById('route-pagination').classList.add('hidden')
   document.getElementById('route-table').innerHTML =
     '<tr><td colspan="6" class="text-center py-6 text-gray-500 text-xs">取得中...</td></tr>'
   try {
     const res = await fetch(`/api/routers/${rid}/routes`)
     allRoutes = await res.json()
-    filterRoutes()
+    applyRouteFilter()
   } catch(e) {
     document.getElementById('route-table').innerHTML =
       `<tr><td colspan="6" class="text-center py-6 text-red-500 text-xs">エラー: ${e.message}</td></tr>`
@@ -243,6 +355,8 @@ function renderRouterList() {
           ${hasError
             ? '<span class="text-xs text-red-400">エラー</span>'
             : `<span class="text-xs font-mono ${established < total ? 'text-yellow-400' : 'text-green-400'}">${established}/${total}</span>`}
+          <button onclick="openEditModal('${r.id}')"
+            class="opacity-0 group-hover:opacity-100 text-gray-600 hover:text-blue-400 transition-all text-xs px-1">✏️</button>
           <button onclick="deleteRouter('${r.id}','${r.name}')"
             class="opacity-0 group-hover:opacity-100 text-gray-600 hover:text-red-400 transition-all text-xs px-1">✕</button>
         </div>
@@ -301,8 +415,10 @@ function renderPeers() {
       continue
     }
     for (const p of r.peers) {
+      const canCheck = p.state === 'Established'
       rows.push(`
-        <tr class="border-t border-gray-800 hover:bg-gray-800/50 transition-colors fade-in">
+        <tr class="border-t border-gray-800 hover:bg-gray-800/50 transition-colors fade-in ${canCheck ? 'cursor-pointer' : ''}"
+            ${canCheck ? `onclick="openPeerModal('${r.id}','${p.neighbor}','${p.remote_as}')"` : ''}>
           <td class="px-5 py-2.5">
             <div class="font-mono text-xs text-gray-200">${p.neighbor}</div>
             <div class="text-xs text-gray-500">${r.name}</div>
@@ -314,7 +430,10 @@ function renderPeers() {
           </td>
           <td class="px-4 py-2.5 text-xs font-mono text-gray-400">${p.updown}</td>
           <td class="px-4 py-2.5 text-right text-xs font-mono text-gray-400">${p.msg_rcvd.toLocaleString()}</td>
-          <td class="px-4 py-2.5 pr-5 text-right text-xs font-mono text-gray-400">${p.msg_sent.toLocaleString()}</td>
+          <td class="px-4 py-2.5 pr-5 text-right text-xs font-mono text-gray-400 flex items-center justify-end gap-2">
+            ${p.msg_sent.toLocaleString()}
+            ${canCheck ? '<span class="text-gray-600 text-xs">→</span>' : ''}
+          </td>
         </tr>`)
     }
   }
@@ -324,17 +443,44 @@ function renderPeers() {
     : '<tr><td colspan="7" class="text-center py-8 text-gray-600 text-xs">ピアが見つかりません</td></tr>'
 }
 
-function filterRoutes() {
-  const q     = document.getElementById('route-filter').value.toLowerCase()
-  const tbody = document.getElementById('route-table')
-  const list  = q ? allRoutes.filter(r => r.prefix.includes(q) || r.as_path.includes(q)) : allRoutes
+function onRouteFilter() {
+  routePage = 0
+  applyRouteFilter()
+}
 
-  if (list.length === 0) {
+function applyRouteFilter() {
+  const q = document.getElementById('route-filter').value.toLowerCase()
+  filteredRoutes = q
+    ? allRoutes.filter(r => r.prefix.includes(q) || (r.as_path || '').toLowerCase().includes(q))
+    : allRoutes
+  renderRoutePage()
+}
+
+function renderRoutePage() {
+  const tbody   = document.getElementById('route-table')
+  const pagEl   = document.getElementById('route-pagination')
+  const infoEl  = document.getElementById('route-page-info')
+  const countEl = document.getElementById('route-count')
+  const prevBtn = document.getElementById('route-prev')
+  const nextBtn = document.getElementById('route-next')
+
+  const total   = filteredRoutes.length
+  const pages   = Math.ceil(total / ROUTE_PER_PAGE) || 1
+  routePage     = Math.max(0, Math.min(routePage, pages - 1))
+
+  const start = routePage * ROUTE_PER_PAGE
+  const end   = Math.min(start + ROUTE_PER_PAGE, total)
+  const slice = filteredRoutes.slice(start, end)
+
+  countEl.textContent = total > 0 ? `${total.toLocaleString()} 件` : ''
+
+  if (total === 0) {
     tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-gray-600 text-xs">ルートが見つかりません</td></tr>'
+    pagEl.classList.add('hidden')
     return
   }
 
-  tbody.innerHTML = list.slice(0, 500).map(r => `
+  tbody.innerHTML = slice.map(r => `
     <tr class="border-t border-gray-800 hover:bg-gray-800/50 transition-colors">
       <td class="px-5 py-2 font-mono text-xs text-blue-300">${r.prefix}</td>
       <td class="px-4 py-2 font-mono text-xs text-gray-300">${r.next_hop}</td>
@@ -343,7 +489,25 @@ function filterRoutes() {
       <td class="px-4 py-2 text-right text-xs font-mono text-gray-400">${r.metric}</td>
       <td class="px-4 py-2 pr-5 text-center text-xs font-mono text-gray-400">${r.origin}</td>
     </tr>`).join('')
+
+  if (pages > 1) {
+    pagEl.classList.remove('hidden')
+    infoEl.textContent = `${(start + 1).toLocaleString()}–${end.toLocaleString()} / ${total.toLocaleString()} 件  (${routePage + 1} / ${pages} ページ)`
+    prevBtn.disabled = routePage === 0
+    nextBtn.disabled = routePage >= pages - 1
+  } else {
+    pagEl.classList.add('hidden')
+    infoEl.textContent = ''
+  }
 }
+
+function routePageStep(delta) {
+  routePage += delta
+  renderRoutePage()
+  document.getElementById('route-table').closest('.overflow-x-auto').scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+}
+
+function filterRoutes() { applyRouteFilter() }
 
 function renderAlerts(alerts) {
   const el = document.getElementById('alert-feed')
@@ -393,6 +557,41 @@ function selectRouter(id) {
 function openAddModal()  { document.getElementById('add-modal').classList.remove('hidden') }
 function closeAddModal() { document.getElementById('add-modal').classList.add('hidden') }
 
+async function openEditModal(id) {
+  const res = await fetch(`/api/routers/${id}`)
+  const r   = await res.json()
+  document.getElementById('edit-id').value           = r.id
+  document.getElementById('edit-name').value         = r.name
+  document.getElementById('edit-host').value         = r.host
+  document.getElementById('edit-port').value         = r.port
+  document.getElementById('edit-username').value     = r.username
+  document.getElementById('edit-password').value      = ''
+  document.getElementById('edit-ssh_key_path').value  = r.ssh_key_path ?? ''
+  document.getElementById('edit-device_type').value   = r.device_type
+  document.getElementById('edit-modal').classList.remove('hidden')
+}
+function closeEditModal() { document.getElementById('edit-modal').classList.add('hidden') }
+
+document.getElementById('edit-form').addEventListener('submit', async e => {
+  e.preventDefault()
+  const id   = document.getElementById('edit-id').value
+  const fd   = new FormData(e.target)
+  const body = Object.fromEntries(fd)
+  body.port  = parseInt(body.port)
+  // パスワード未入力の場合は既存を維持
+  if (!body.password) {
+    const cur = await fetch(`/api/routers/${id}`).then(r => r.json())
+    body.password = cur.password ?? ''
+  }
+  await fetch(`/api/routers/${id}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) })
+  closeEditModal()
+  await fetchStatus()
+})
+
+document.getElementById('edit-modal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeEditModal()
+})
+
 document.getElementById('add-form').addEventListener('submit', async e => {
   e.preventDefault()
   const fd   = new FormData(e.target)
@@ -407,6 +606,74 @@ document.getElementById('add-form').addEventListener('submit', async e => {
 document.getElementById('add-modal').addEventListener('click', e => {
   if (e.target === e.currentTarget) closeAddModal()
 })
+
+// ── ピア広報モーダル ──────────────────────────────────
+let peerModalState = { rid: null, neighbor: null, remoteAs: null, type: 'advertised' }
+
+function openPeerModal(rid, neighbor, remoteAs) {
+  peerModalState = { rid, neighbor, remoteAs, type: 'advertised' }
+  document.getElementById('peer-modal-title').textContent = `ピア: ${neighbor}  AS${remoteAs}`
+  document.getElementById('peer-modal-sub').textContent = ''
+  document.getElementById('peer-modal').classList.remove('hidden')
+  loadPeerRoutes('advertised')
+}
+
+function closePeerModal() {
+  document.getElementById('peer-modal').classList.add('hidden')
+}
+
+document.getElementById('peer-modal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closePeerModal()
+})
+
+async function loadPeerRoutes(type) {
+  peerModalState.type = type
+
+  // タブの見た目を切り替え
+  const tabAdv = document.getElementById('tab-advertised')
+  const tabRcv = document.getElementById('tab-received')
+  if (type === 'advertised') {
+    tabAdv.className = 'px-3 py-1.5 text-xs rounded-lg bg-blue-600 text-white transition-colors'
+    tabRcv.className = 'px-3 py-1.5 text-xs rounded-lg text-gray-400 hover:bg-gray-800 transition-colors'
+    document.getElementById('peer-modal-sub').textContent = '広報ルート（このルーターがこのピアへ送信しているルート）'
+  } else {
+    tabAdv.className = 'px-3 py-1.5 text-xs rounded-lg text-gray-400 hover:bg-gray-800 transition-colors'
+    tabRcv.className = 'px-3 py-1.5 text-xs rounded-lg bg-blue-600 text-white transition-colors'
+    document.getElementById('peer-modal-sub').textContent = '受信ルート（このピアから受け取っているルート）'
+  }
+
+  const tbody = document.getElementById('peer-route-table')
+  const countEl = document.getElementById('peer-route-count')
+  tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-gray-500 text-xs">取得中...</td></tr>'
+  countEl.textContent = ''
+
+  const { rid, neighbor } = peerModalState
+  try {
+    const res = await fetch(`/api/routers/${rid}/peers/${encodeURIComponent(neighbor)}/routes?type=${type}`)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const routes = await res.json()
+
+    if (routes.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-gray-600 text-xs">ルートなし</td></tr>'
+      countEl.textContent = '0 ルート'
+      return
+    }
+
+    tbody.innerHTML = routes.map(r => `
+      <tr class="border-t border-gray-800 hover:bg-gray-800/50 transition-colors">
+        <td class="px-5 py-2 font-mono text-xs text-blue-300">${r.prefix}</td>
+        <td class="px-4 py-2 font-mono text-xs text-gray-300">${r.next_hop}</td>
+        <td class="px-4 py-2 font-mono text-xs text-gray-400">${r.as_path || '—'}</td>
+        <td class="px-4 py-2 text-right text-xs font-mono text-gray-400">${r.local_pref}</td>
+        <td class="px-4 py-2 text-right text-xs font-mono text-gray-400">${r.metric}</td>
+        <td class="px-4 py-2 pr-5 text-center text-xs font-mono text-gray-400">${r.origin}</td>
+      </tr>`).join('')
+    countEl.textContent = `${routes.length.toLocaleString()} ルート`
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-red-500 text-xs">エラー: ${e.message}</td></tr>`
+    countEl.textContent = ''
+  }
+}
 
 // ── ポーリング ────────────────────────────────────────
 fetchStatus()
