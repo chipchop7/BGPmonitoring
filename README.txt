@@ -1,7 +1,7 @@
 pip install -r requirements.txt
 python main.py
 
-![picture1](https://github.com/user-attachments/assets/accd6bce-5eac-4188-8a16-7ae8211a7d13)
+![picture1](https://github.com/chipchop7/BGPmonitoring/issues/1#issue-4388484195)
 
 ![picture2]()
 
