@@ -14,21 +14,36 @@
 <body class="bg-gray-950 text-gray-100 min-h-screen">
 
 <!-- ヘッダー -->
-<header class="bg-gray-900 border-b border-gray-800 px-6 py-3 flex items-center justify-between">
-  <div class="flex items-center gap-3">
-    <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-sm font-bold">B</div>
-    <span class="text-lg font-bold tracking-wide">BGP Monitor</span>
+<header class="bg-gray-900 border-b border-gray-800 px-4 py-3 flex items-center justify-between sticky top-0 z-20">
+  <div class="flex items-center gap-2">
+    <!-- ハンバーガー (モバイルのみ) -->
+    <button onclick="toggleSidebar()" class="md:hidden w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-200 rounded">
+      <svg viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5"><path fill-rule="evenodd" d="M2 4.75A.75.75 0 012.75 4h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 4.75zm0 10.5a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75a.75.75 0 01-.75-.75zM2 10a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 10z" clip-rule="evenodd"/></svg>
+    </button>
+    <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0">B</div>
+    <span class="text-base font-bold tracking-wide">BGP Monitor</span>
   </div>
-  <div class="flex items-center gap-3">
-    <span id="last-updated" class="text-xs text-gray-500"></span>
-    <div id="status-dot" class="w-2 h-2 rounded-full bg-gray-600"></div>
+  <div class="flex items-center gap-2">
+    <span id="last-updated" class="text-xs text-gray-500 hidden sm:block"></span>
+    <div id="status-dot" class="w-2 h-2 rounded-full bg-gray-600 flex-shrink-0"></div>
   </div>
 </header>
+
+<!-- サイドバー背景幕 (モバイル) -->
+<div id="sidebar-backdrop" onclick="closeSidebar()"
+     class="hidden fixed inset-0 bg-black/60 z-30 md:hidden"></div>
 
 <div class="flex h-[calc(100vh-52px)]">
 
   <!-- サイドバー -->
-  <aside class="w-64 bg-gray-900 border-r border-gray-800 flex flex-col">
+  <aside id="sidebar"
+    class="fixed md:static top-[52px] md:top-auto left-0 bottom-0 md:bottom-auto
+           z-40 md:z-auto
+           w-72 md:w-64
+           bg-gray-900 border-r border-gray-800 flex flex-col flex-shrink-0
+           -translate-x-full md:translate-x-0
+           transition-transform duration-200 ease-in-out
+           h-[calc(100vh-52px)] md:h-auto overflow-hidden">
     <div class="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
       <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">ルーター</span>
       <button onclick="openAddModal()" class="w-6 h-6 bg-blue-600 hover:bg-blue-500 rounded flex items-center justify-center text-sm transition-colors">+</button>
@@ -43,7 +58,7 @@
   </aside>
 
   <!-- メインコンテンツ -->
-  <main class="flex-1 overflow-auto p-6">
+  <main class="flex-1 overflow-auto p-4 md:p-6">
     <div id="no-router" class="hidden flex flex-col items-center justify-center h-full text-gray-500">
       <p class="text-5xl mb-4">🌐</p>
       <p class="text-lg font-medium">ルーターを追加してください</p>
@@ -52,30 +67,30 @@
 
     <div id="dashboard">
       <!-- 統計カード -->
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6" id="stat-cards"></div>
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5" id="stat-cards"></div>
 
       <!-- BGP ピアテーブル -->
       <div class="bg-gray-900 rounded-xl border border-gray-800">
-        <div class="px-5 py-3 border-b border-gray-800 flex items-center justify-between">
-          <h2 class="font-semibold text-sm">BGP ピア状態</h2>
+        <div class="px-4 py-3 border-b border-gray-800 flex items-center justify-between gap-2">
+          <h2 class="font-semibold text-sm whitespace-nowrap">BGP ピア状態</h2>
           <div class="flex gap-2">
-            <select id="router-filter" onchange="renderPeers()" class="bg-gray-800 border border-gray-700 text-xs rounded px-2 py-1 text-gray-300">
+            <select id="router-filter" onchange="renderPeers()" class="bg-gray-800 border border-gray-700 text-xs rounded px-2 py-1 text-gray-300 max-w-[120px] sm:max-w-none truncate">
               <option value="all">全ルーター</option>
             </select>
-            <button onclick="refreshAll()" class="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-xs rounded transition-colors">更新</button>
+            <button onclick="refreshAll()" class="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-xs rounded transition-colors whitespace-nowrap">更新</button>
           </div>
         </div>
         <div class="overflow-x-auto">
-          <table class="w-full text-sm">
+          <table class="w-full text-sm min-w-[480px]">
             <thead>
               <tr class="text-xs text-gray-500 border-b border-gray-800">
-                <th class="text-left px-5 py-2">ネイバー IP</th>
-                <th class="text-left px-4 py-2">リモート AS</th>
-                <th class="text-left px-4 py-2">状態</th>
-                <th class="text-right px-4 py-2">受信プレフィックス</th>
-                <th class="text-left px-4 py-2">セッション時間</th>
-                <th class="text-right px-4 py-2">受信 MSG</th>
-                <th class="text-right px-4 py-2 pr-5">送信 MSG</th>
+                <th class="text-left px-4 py-2">ネイバー IP</th>
+                <th class="text-left px-3 py-2 hidden sm:table-cell">リモート AS</th>
+                <th class="text-left px-3 py-2">状態</th>
+                <th class="text-right px-3 py-2">プレフィックス</th>
+                <th class="text-left px-3 py-2 hidden sm:table-cell">時間</th>
+                <th class="text-right px-3 py-2 hidden md:table-cell">受信 MSG</th>
+                <th class="text-right px-3 py-2 pr-4 hidden md:table-cell">送信 MSG</th>
               </tr>
             </thead>
             <tbody id="peer-table"></tbody>
@@ -86,39 +101,39 @@
   </main>
 </div>
 
-<!-- ピア広報モーダル -->
-<div id="peer-modal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-  <div class="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-3xl max-h-[80vh] flex flex-col">
-    <div class="px-5 py-4 border-b border-gray-800 flex items-center justify-between flex-shrink-0">
-      <div>
-        <h3 class="font-semibold text-sm" id="peer-modal-title">ピア詳細</h3>
-        <p class="text-xs text-gray-500 mt-0.5" id="peer-modal-sub"></p>
+<!-- ピアモーダル -->
+<div id="peer-modal" class="hidden fixed inset-0 bg-black/70 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+  <div class="bg-gray-900 border border-gray-700 rounded-t-2xl sm:rounded-xl w-full sm:max-w-3xl max-h-[92vh] sm:max-h-[85vh] flex flex-col">
+    <div class="px-4 py-3 border-b border-gray-800 flex items-center justify-between flex-shrink-0">
+      <div class="min-w-0 pr-3">
+        <h3 class="font-semibold text-sm truncate" id="peer-modal-title">ピア詳細</h3>
+        <p class="text-xs text-gray-500 mt-0.5 truncate" id="peer-modal-sub"></p>
       </div>
-      <button onclick="closePeerModal()" class="text-gray-500 hover:text-gray-300 text-xl leading-none">✕</button>
+      <button onclick="closePeerModal()" class="text-gray-500 hover:text-gray-300 text-xl leading-none flex-shrink-0">✕</button>
     </div>
-    <div class="flex gap-1 px-5 py-2 border-b border-gray-800 flex-shrink-0">
+    <div class="flex gap-1 px-4 py-2 border-b border-gray-800 flex-shrink-0 overflow-x-auto">
       <button onclick="loadPeerRoutes('advertised')" id="tab-advertised"
-        class="px-3 py-1.5 text-xs rounded-lg bg-blue-600 text-white transition-colors">広報ルート（送信）</button>
+        class="px-3 py-1.5 text-xs rounded-lg bg-blue-600 text-white transition-colors whitespace-nowrap">広報ルート</button>
       <button onclick="loadPeerRoutes('received')" id="tab-received"
-        class="px-3 py-1.5 text-xs rounded-lg text-gray-400 hover:bg-gray-800 transition-colors">受信ルート</button>
+        class="px-3 py-1.5 text-xs rounded-lg text-gray-400 hover:bg-gray-800 transition-colors whitespace-nowrap">受信ルート</button>
       <button onclick="loadPeerDetail()" id="tab-detail"
-        class="px-3 py-1.5 text-xs rounded-lg text-gray-400 hover:bg-gray-800 transition-colors">セッション詳細</button>
+        class="px-3 py-1.5 text-xs rounded-lg text-gray-400 hover:bg-gray-800 transition-colors whitespace-nowrap">セッション詳細</button>
     </div>
-    <div id="route-search-bar" class="px-5 py-2 border-b border-gray-800 flex-shrink-0">
-      <input id="route-search" type="text" placeholder="プレフィックス / Next Hop / AS Path で絞り込み..."
+    <div id="route-search-bar" class="px-4 py-2 border-b border-gray-800 flex-shrink-0">
+      <input id="route-search" type="text" placeholder="プレフィックス / Next Hop / AS Path..."
         oninput="filterPeerRoutes()"
-        class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-xs text-gray-300 placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500">
+        class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-300 placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500">
     </div>
     <div id="route-table-wrapper" class="overflow-auto flex-1">
-      <table class="w-full text-sm">
+      <table class="w-full text-sm min-w-[480px]">
         <thead class="sticky top-0 bg-gray-900">
           <tr class="text-xs text-gray-500 border-b border-gray-800">
-            <th class="text-left px-5 py-2">プレフィックス</th>
-            <th class="text-left px-4 py-2">ネクストホップ</th>
-            <th class="text-left px-4 py-2">AS Path</th>
-            <th class="text-right px-4 py-2">LocPrf</th>
-            <th class="text-right px-4 py-2">MED</th>
-            <th class="text-center px-4 py-2 pr-5">Origin</th>
+            <th class="text-left px-4 py-2">プレフィックス</th>
+            <th class="text-left px-3 py-2">ネクストホップ</th>
+            <th class="text-left px-3 py-2 hidden sm:table-cell">AS Path</th>
+            <th class="text-right px-3 py-2 hidden sm:table-cell">LocPrf</th>
+            <th class="text-right px-3 py-2">MED</th>
+            <th class="text-center px-3 py-2 pr-4">Origin</th>
           </tr>
         </thead>
         <tbody id="peer-route-table">
@@ -126,51 +141,51 @@
         </tbody>
       </table>
     </div>
-    <div id="peer-route-count-bar" class="px-5 py-2 border-t border-gray-800 text-xs text-gray-500 flex-shrink-0 flex items-center justify-between">
+    <div id="peer-route-count-bar" class="px-4 py-2 border-t border-gray-800 text-xs text-gray-500 flex-shrink-0 flex items-center justify-between">
       <span id="peer-route-count"></span>
-      <span class="text-gray-600 text-xs">プレフィックスをクリックでコピー</span>
+      <span class="text-gray-600 text-xs hidden sm:block">プレフィックスをクリックでコピー</span>
     </div>
 
     <!-- セッション詳細パネル (content written by loadPeerDetail()) -->
-    <div id="peer-detail-panel" class="hidden overflow-auto flex-1 px-5 py-4 space-y-4"></div>
+    <div id="peer-detail-panel" class="hidden overflow-auto flex-1 px-4 py-4 space-y-3"></div>
   </div>
 </div>
 
 <!-- ルーター編集モーダル -->
-<div id="edit-modal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-  <div class="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-md p-6">
-    <h3 class="text-lg font-semibold mb-4">ルーターを編集</h3>
+<div id="edit-modal" class="hidden fixed inset-0 bg-black/70 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+  <div class="bg-gray-900 border border-gray-700 rounded-t-2xl sm:rounded-xl w-full sm:max-w-md p-5 overflow-y-auto max-h-[92vh]">
+    <h3 class="text-base font-semibold mb-4">ルーターを編集</h3>
     <form id="edit-form" class="space-y-3">
       <input type="hidden" id="edit-id">
       <div class="grid grid-cols-2 gap-3">
         <div class="col-span-2">
           <label class="block text-xs text-gray-400 mb-1">表示名 *</label>
-          <input id="edit-name" name="name" required class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <input id="edit-name" name="name" required class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
         </div>
         <div>
           <label class="block text-xs text-gray-400 mb-1">ホスト / IP *</label>
-          <input id="edit-host" name="host" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <input id="edit-host" name="host" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
         </div>
         <div>
           <label class="block text-xs text-gray-400 mb-1">ポート</label>
-          <input id="edit-port" name="port" type="number" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <input id="edit-port" name="port" type="number" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
         </div>
         <div>
           <label class="block text-xs text-gray-400 mb-1">ユーザー名</label>
-          <input id="edit-username" name="username" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <input id="edit-username" name="username" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
         </div>
         <div>
-          <label class="block text-xs text-gray-400 mb-1">パスワード（空白で変更なし）</label>
-          <input id="edit-password" name="password" type="password" placeholder="••••••••" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <label class="block text-xs text-gray-400 mb-1">パスワード</label>
+          <input id="edit-password" name="password" type="password" placeholder="••••••••" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
         </div>
         <div class="col-span-2">
-          <label class="block text-xs text-gray-400 mb-1">秘密鍵ファイルパス（公開鍵認証）</label>
-          <input id="edit-ssh_key_path" name="ssh_key_path" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono" placeholder="C:\Users\karaa\.ssh\id_rsa">
+          <label class="block text-xs text-gray-400 mb-1">秘密鍵ファイルパス</label>
+          <input id="edit-ssh_key_path" name="ssh_key_path" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono" placeholder="/home/user/.ssh/id_rsa">
           <p class="text-xs text-gray-600 mt-1">入力するとパスワードの代わりに鍵認証を使用します</p>
         </div>
         <div class="col-span-2">
           <label class="block text-xs text-gray-400 mb-1">デバイスタイプ</label>
-          <select id="edit-device_type" name="device_type" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <select id="edit-device_type" name="device_type" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
             <option value="cisco_ios">Cisco IOS / IOS-XE</option>
             <option value="cisco_xr">Cisco IOS-XR</option>
             <option value="juniper_junos">Juniper JunOS</option>
@@ -179,43 +194,43 @@
           </select>
         </div>
       </div>
-      <div class="flex gap-3 pt-2">
-        <button type="button" onclick="closeEditModal()" class="flex-1 py-2 border border-gray-700 rounded-lg text-sm hover:bg-gray-800 transition-colors">キャンセル</button>
-        <button type="submit" class="flex-1 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium transition-colors">保存</button>
+      <div class="flex gap-3 pt-1">
+        <button type="button" onclick="closeEditModal()" class="flex-1 py-2.5 border border-gray-700 rounded-lg text-sm hover:bg-gray-800 transition-colors">キャンセル</button>
+        <button type="submit" class="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium transition-colors">保存</button>
       </div>
     </form>
   </div>
 </div>
 
 <!-- ルーター追加モーダル -->
-<div id="add-modal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-  <div class="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-md p-6">
-    <h3 class="text-lg font-semibold mb-4">ルーターを追加</h3>
+<div id="add-modal" class="hidden fixed inset-0 bg-black/70 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+  <div class="bg-gray-900 border border-gray-700 rounded-t-2xl sm:rounded-xl w-full sm:max-w-md p-5 overflow-y-auto max-h-[92vh]">
+    <h3 class="text-base font-semibold mb-4">ルーターを追加</h3>
     <form id="add-form" class="space-y-3">
       <div class="grid grid-cols-2 gap-3">
         <div class="col-span-2">
           <label class="block text-xs text-gray-400 mb-1">表示名 *</label>
-          <input name="name" required class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Router-A">
+          <input name="name" required class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Router-A">
         </div>
         <div>
           <label class="block text-xs text-gray-400 mb-1">ホスト / IP *</label>
-          <input name="host" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="192.168.1.1">
+          <input name="host" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="192.168.1.1">
         </div>
         <div>
           <label class="block text-xs text-gray-400 mb-1">ポート</label>
-          <input name="port" type="number" value="22" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <input name="port" type="number" value="22" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
         </div>
         <div>
           <label class="block text-xs text-gray-400 mb-1">ユーザー名</label>
-          <input name="username" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="admin">
+          <input name="username" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="admin">
         </div>
         <div>
           <label class="block text-xs text-gray-400 mb-1">パスワード</label>
-          <input name="password" type="password" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <input name="password" type="password" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
         </div>
         <div class="col-span-2">
           <label class="block text-xs text-gray-400 mb-1">デバイスタイプ</label>
-          <select name="device_type" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <select name="device_type" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
             <option value="cisco_ios">Cisco IOS / IOS-XE</option>
             <option value="cisco_xr">Cisco IOS-XR</option>
             <option value="juniper_junos">Juniper JunOS</option>
@@ -224,14 +239,14 @@
           </select>
         </div>
         <div class="col-span-2">
-          <label class="block text-xs text-gray-400 mb-1">秘密鍵ファイルパス（公開鍵認証）</label>
-          <input name="ssh_key_path" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono" placeholder="">
+          <label class="block text-xs text-gray-400 mb-1">秘密鍵ファイルパス</label>
+          <input name="ssh_key_path" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono" placeholder="">
           <p class="text-xs text-gray-600 mt-1">入力するとパスワードの代わりに鍵認証を使用します</p>
         </div>
       </div>
-      <div class="flex gap-3 pt-2">
-        <button type="button" onclick="closeAddModal()" class="flex-1 py-2 border border-gray-700 rounded-lg text-sm hover:bg-gray-800 transition-colors">キャンセル</button>
-        <button type="submit" class="flex-1 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium transition-colors">追加</button>
+      <div class="flex gap-3 pt-1">
+        <button type="button" onclick="closeAddModal()" class="flex-1 py-2.5 border border-gray-700 rounded-lg text-sm hover:bg-gray-800 transition-colors">キャンセル</button>
+        <button type="submit" class="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium transition-colors">追加</button>
       </div>
     </form>
     <p class="text-xs text-gray-600 mt-3">※ デモを選ぶと実際のルーター不要で動作確認できます</p>
@@ -241,40 +256,54 @@
 <script>
 let allStatus = []
 let selectedRouter = null
-let prevPrefixCounts = {}  // { 'routerId:neighbor': prefixCount } 前回取得値
-let allPeerRoutes = []     // ピアモーダルの全ルート（フィルター前）
+let prevPrefixCounts = {}
+let allPeerRoutes = []
+
+// ── サイドバー (モバイル) ──────────────────────────────
+function toggleSidebar() {
+  const sidebar  = document.getElementById('sidebar')
+  const backdrop = document.getElementById('sidebar-backdrop')
+  const isOpen   = !sidebar.classList.contains('-translate-x-full')
+  if (isOpen) {
+    sidebar.classList.add('-translate-x-full')
+    backdrop.classList.add('hidden')
+  } else {
+    sidebar.classList.remove('-translate-x-full')
+    backdrop.classList.remove('hidden')
+  }
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.add('-translate-x-full')
+  document.getElementById('sidebar-backdrop').classList.add('hidden')
+}
 
 // ── データ取得 ─────────────────────────────────────────
 async function fetchStatus() {
   try {
-    // 前回の prefix_count を保存してから更新
     const snapshot = {}
-    for (const r of allStatus) {
-      for (const p of r.peers) {
+    for (const r of allStatus)
+      for (const p of r.peers)
         snapshot[`${r.id}:${p.neighbor}`] = p.prefix_count
-      }
-    }
+
     const res = await fetch('/api/status')
     allStatus = await res.json()
     prevPrefixCounts = snapshot
     render()
-    document.getElementById('status-dot').className = 'w-2 h-2 rounded-full bg-green-500'
+    document.getElementById('status-dot').className = 'w-2 h-2 rounded-full bg-green-500 flex-shrink-0'
     document.getElementById('last-updated').textContent = '更新: ' + new Date().toLocaleTimeString('ja-JP')
   } catch {
-    document.getElementById('status-dot').className = 'w-2 h-2 rounded-full bg-red-500'
+    document.getElementById('status-dot').className = 'w-2 h-2 rounded-full bg-red-500 flex-shrink-0'
   }
 }
 
 async function fetchAlerts() {
   const res = await fetch('/api/alerts')
-  const alerts = await res.json()
-  renderAlerts(alerts)
+  renderAlerts(await res.json())
 }
 
 async function refreshAll() {
-  for (const r of allStatus) {
+  for (const r of allStatus)
     await fetch(`/api/routers/${r.id}/refresh`, { method: 'POST' }).catch(() => {})
-  }
   await fetchStatus()
 }
 
@@ -284,15 +313,9 @@ function render() {
   renderStats()
   renderPeers()
   updateRouterFilter()
-  const noRouter  = document.getElementById('no-router')
-  const dashboard = document.getElementById('dashboard')
-  if (allStatus.length === 0) {
-    noRouter.classList.remove('hidden')
-    dashboard.classList.add('hidden')
-  } else {
-    noRouter.classList.add('hidden')
-    dashboard.classList.remove('hidden')
-  }
+  const empty = allStatus.length === 0
+  document.getElementById('no-router').classList.toggle('hidden', !empty)
+  document.getElementById('dashboard').classList.toggle('hidden', empty)
 }
 
 function renderRouterList() {
@@ -302,19 +325,19 @@ function renderRouterList() {
     const total = r.peers.length
     const hasError = !!r.error
     return `
-      <div class="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-800 group">
+      <div class="flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-gray-800 group active:bg-gray-800">
         <div class="flex-1 min-w-0 cursor-pointer" onclick="selectRouter('${r.id}')">
           <p class="text-sm font-medium text-gray-200 truncate">${r.name}</p>
           <p class="text-xs text-gray-500">${r.host}</p>
         </div>
-        <div class="flex items-center gap-2 ml-2">
+        <div class="flex items-center gap-1.5 ml-2 flex-shrink-0">
           ${hasError
             ? '<span class="text-xs text-red-400">エラー</span>'
             : `<span class="text-xs font-mono ${established < total ? 'text-yellow-400' : 'text-green-400'}">${established}/${total}</span>`}
           <button onclick="openEditModal('${r.id}')"
-            class="opacity-0 group-hover:opacity-100 text-gray-600 hover:text-blue-400 transition-all text-xs px-1">✏️</button>
+            class="text-gray-500 hover:text-blue-400 active:text-blue-400 transition-all text-xs px-1 py-0.5 rounded hover:bg-gray-700 md:opacity-0 md:group-hover:opacity-100">✏️</button>
           <button onclick="deleteRouter('${r.id}','${r.name}')"
-            class="opacity-0 group-hover:opacity-100 text-gray-600 hover:text-red-400 transition-all text-xs px-1">✕</button>
+            class="text-gray-500 hover:text-red-400 active:text-red-400 transition-all text-xs px-1 py-0.5 rounded hover:bg-gray-700 md:opacity-0 md:group-hover:opacity-100">✕</button>
         </div>
       </div>`
   }).join('')
@@ -334,9 +357,9 @@ function renderStats() {
   ]
 
   document.getElementById('stat-cards').innerHTML = cards.map(c => `
-    <div class="bg-gray-900 border border-gray-800 rounded-xl p-4">
+    <div class="bg-gray-900 border border-gray-800 rounded-xl p-3 sm:p-4">
       <p class="text-xs text-gray-500 mb-1">${c.label}</p>
-      <p class="text-2xl font-bold ${c.color}">${c.value}</p>
+      <p class="text-xl sm:text-2xl font-bold ${c.color}">${c.value}</p>
     </div>`).join('')
 }
 
@@ -361,42 +384,40 @@ function renderPeers() {
   for (const r of allStatus) {
     if (filter !== 'all' && r.id !== filter) continue
 
-    // ルーターごとのグループヘッダー行（全ルーター表示時のみ）
     if (filter === 'all' && allStatus.length > 1) {
-      const localAs   = r.local_as   ? `AS${r.local_as}`  : '—'
-      const routerId  = r.router_id  || '—'
+      const localAs  = r.local_as  ? `AS${r.local_as}` : '—'
+      const routerId = r.router_id || '—'
       rows.push(`
         <tr class="bg-gray-800/60 border-t-2 border-gray-700">
-          <td colspan="7" class="px-5 py-1.5">
+          <td colspan="7" class="px-4 py-1.5">
             <span class="text-xs font-semibold text-gray-200">${r.name}</span>
             <span class="text-xs text-gray-500 ml-3">Local ${localAs}</span>
-            <span class="text-xs text-gray-500 ml-2">Router-ID ${routerId}</span>
-            <span class="text-xs text-gray-600 ml-2">${r.host}</span>
+            <span class="text-xs text-gray-500 ml-2 hidden sm:inline">Router-ID ${routerId}</span>
+            <span class="text-xs text-gray-600 ml-2 hidden sm:inline">${r.host}</span>
           </td>
         </tr>`)
     }
 
     if (r.error) {
       rows.push(`<tr class="border-t border-gray-800">
-        <td colspan="7" class="px-5 py-3 text-xs text-red-400">エラー — ${r.error}</td></tr>`)
+        <td colspan="7" class="px-4 py-3 text-xs text-red-400">エラー — ${r.error}</td></tr>`)
       continue
     }
     if (r.peers.length === 0) {
       rows.push(`<tr class="border-t border-gray-800">
-        <td colspan="7" class="px-5 py-3 text-xs text-gray-500">データ取得中...</td></tr>`)
+        <td colspan="7" class="px-4 py-3 text-xs text-gray-500">データ取得中...</td></tr>`)
       continue
     }
 
-    // 単一ルーター表示時はヘッダーをテーブル上部に表示
     if (filter !== 'all' || allStatus.length === 1) {
-      const localAs  = r.local_as  ? `AS${r.local_as}`  : '—'
+      const localAs  = r.local_as  ? `AS${r.local_as}` : '—'
       const routerId = r.router_id || '—'
       rows.push(`
         <tr class="bg-gray-800/40 border-t border-gray-800">
-          <td colspan="7" class="px-5 py-1.5 text-xs text-gray-400">
+          <td colspan="7" class="px-4 py-1.5 text-xs text-gray-400">
             <span class="font-medium text-gray-300">${r.name}</span>
             <span class="ml-3">Local ${localAs}</span>
-            <span class="ml-2">Router-ID ${routerId}</span>
+            <span class="ml-2 hidden sm:inline">Router-ID ${routerId}</span>
           </td>
         </tr>`)
     }
@@ -404,32 +425,30 @@ function renderPeers() {
     for (const p of r.peers) {
       const canCheck = p.state === 'Established'
       const ibgp = r.local_as && p.remote_as === r.local_as
+      const prev = prevPrefixCounts[`${r.id}:${p.neighbor}`]
+      const delta = (() => {
+        if (p.state !== 'Established' || prev === undefined) return ''
+        const d = p.prefix_count - prev
+        if (d > 0) return `<span class="text-green-400 ml-1">+${d.toLocaleString()}</span>`
+        if (d < 0) return `<span class="text-red-400 ml-1">${d.toLocaleString()}</span>`
+        return ''
+      })()
       rows.push(`
-        <tr class="border-t border-gray-800 hover:bg-gray-800/50 transition-colors fade-in ${canCheck ? 'cursor-pointer' : ''}"
+        <tr class="border-t border-gray-800 hover:bg-gray-800/50 active:bg-gray-800/50 transition-colors fade-in ${canCheck ? 'cursor-pointer' : ''}"
             ${canCheck ? `onclick="openPeerModal('${r.id}','${p.neighbor}','${p.remote_as}')"` : ''}>
-          <td class="px-5 py-2.5">
+          <td class="px-4 py-3">
             <div class="font-mono text-xs text-gray-200">${p.neighbor}</div>
             <div class="text-xs text-gray-600">${ibgp ? 'iBGP' : 'eBGP'}</div>
           </td>
-          <td class="px-4 py-2.5 text-xs font-mono text-gray-300">AS${p.remote_as}</td>
-          <td class="px-4 py-2.5">${stateTag(p.state)}</td>
-          <td class="px-4 py-2.5 text-right text-xs font-mono text-gray-300">
-            ${p.state === 'Established' ? p.prefix_count.toLocaleString() : '—'}
-            ${(() => {
-              if (p.state !== 'Established') return ''
-              const prev = prevPrefixCounts[`${r.id}:${p.neighbor}`]
-              if (prev === undefined) return ''
-              const d = p.prefix_count - prev
-              if (d > 0) return `<span class="text-green-400 ml-1">+${d.toLocaleString()}</span>`
-              if (d < 0) return `<span class="text-red-400 ml-1">${d.toLocaleString()}</span>`
-              return ''
-            })()}
+          <td class="px-3 py-3 text-xs font-mono text-gray-300 hidden sm:table-cell">AS${p.remote_as}</td>
+          <td class="px-3 py-3">${stateTag(p.state)}</td>
+          <td class="px-3 py-3 text-right text-xs font-mono text-gray-300">
+            ${p.state === 'Established' ? p.prefix_count.toLocaleString() : '—'}${delta}
           </td>
-          <td class="px-4 py-2.5 text-xs font-mono text-gray-400">${p.updown}</td>
-          <td class="px-4 py-2.5 text-right text-xs font-mono text-gray-400">${p.msg_rcvd.toLocaleString()}</td>
-          <td class="px-4 py-2.5 pr-5 text-right text-xs font-mono text-gray-400 flex items-center justify-end gap-2">
-            ${p.msg_sent.toLocaleString()}
-            ${canCheck ? '<span class="text-gray-600 text-xs">→</span>' : ''}
+          <td class="px-3 py-3 text-xs font-mono text-gray-400 hidden sm:table-cell">${p.updown}</td>
+          <td class="px-3 py-3 text-right text-xs font-mono text-gray-400 hidden md:table-cell">${p.msg_rcvd.toLocaleString()}</td>
+          <td class="px-3 py-3 pr-4 text-right text-xs font-mono text-gray-400 hidden md:table-cell">
+            ${p.msg_sent.toLocaleString()}${canCheck ? ' <span class="text-gray-600">→</span>' : ''}
           </td>
         </tr>`)
     }
@@ -460,11 +479,9 @@ function renderAlerts(alerts) {
 function updateRouterFilter() {
   const filter = document.getElementById('router-filter')
   const existing = new Set([...filter.options].map(o => o.value))
-  for (const r of allStatus) {
-    if (!existing.has(r.id)) {
+  for (const r of allStatus)
+    if (!existing.has(r.id))
       filter.appendChild(new Option(r.name, r.id))
-    }
-  }
 }
 
 async function deleteRouter(id, name) {
@@ -477,6 +494,7 @@ function selectRouter(id) {
   selectedRouter = id
   document.getElementById('router-filter').value = id
   renderPeers()
+  closeSidebar()
 }
 
 // ── モーダル ──────────────────────────────────────────
@@ -484,16 +502,15 @@ function openAddModal()  { document.getElementById('add-modal').classList.remove
 function closeAddModal() { document.getElementById('add-modal').classList.add('hidden') }
 
 async function openEditModal(id) {
-  const res = await fetch(`/api/routers/${id}`)
-  const r   = await res.json()
-  document.getElementById('edit-id').value          = r.id
-  document.getElementById('edit-name').value        = r.name
-  document.getElementById('edit-host').value        = r.host
-  document.getElementById('edit-port').value        = r.port
-  document.getElementById('edit-username').value    = r.username
-  document.getElementById('edit-password').value    = ''
+  const r = await fetch(`/api/routers/${id}`).then(r => r.json())
+  document.getElementById('edit-id').value           = r.id
+  document.getElementById('edit-name').value         = r.name
+  document.getElementById('edit-host').value         = r.host
+  document.getElementById('edit-port').value         = r.port
+  document.getElementById('edit-username').value     = r.username
+  document.getElementById('edit-password').value     = ''
   document.getElementById('edit-ssh_key_path').value = r.ssh_key_path ?? ''
-  document.getElementById('edit-device_type').value = r.device_type
+  document.getElementById('edit-device_type').value  = r.device_type
   document.getElementById('edit-modal').classList.remove('hidden')
 }
 function closeEditModal() { document.getElementById('edit-modal').classList.add('hidden') }
@@ -501,8 +518,7 @@ function closeEditModal() { document.getElementById('edit-modal').classList.add(
 document.getElementById('edit-form').addEventListener('submit', async e => {
   e.preventDefault()
   const id   = document.getElementById('edit-id').value
-  const fd   = new FormData(e.target)
-  const body = Object.fromEntries(fd)
+  const body = Object.fromEntries(new FormData(e.target))
   body.port  = parseInt(body.port)
   if (!body.password) {
     const cur = await fetch(`/api/routers/${id}`).then(r => r.json())
@@ -513,31 +529,26 @@ document.getElementById('edit-form').addEventListener('submit', async e => {
   await fetchStatus()
 })
 
-document.getElementById('edit-modal').addEventListener('click', e => {
-  if (e.target === e.currentTarget) closeEditModal()
-})
-
 document.getElementById('add-form').addEventListener('submit', async e => {
   e.preventDefault()
-  const fd   = new FormData(e.target)
-  const body = Object.fromEntries(fd)
+  const body = Object.fromEntries(new FormData(e.target))
   body.port  = parseInt(body.port)
-  await fetch('/api/routers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+  await fetch('/api/routers', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) })
   closeAddModal()
   e.target.reset()
   await fetchStatus()
 })
 
-document.getElementById('add-modal').addEventListener('click', e => {
-  if (e.target === e.currentTarget) closeAddModal()
-})
+// モーダル外タップで閉じる
+document.getElementById('edit-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeEditModal() })
+document.getElementById('add-modal').addEventListener('click',  e => { if (e.target === e.currentTarget) closeAddModal()  })
 
-// ── ピア広報モーダル ──────────────────────────────────
+// ── ピアモーダル ──────────────────────────────────────
 let peerModalState = { rid: null, neighbor: null, remoteAs: null, type: 'advertised' }
 
 function openPeerModal(rid, neighbor, remoteAs) {
   peerModalState = { rid, neighbor, remoteAs, type: 'advertised' }
-  document.getElementById('peer-modal-title').textContent = `ピア: ${neighbor}  AS${remoteAs}`
+  document.getElementById('peer-modal-title').textContent = `${neighbor}  AS${remoteAs}`
   document.getElementById('peer-modal-sub').textContent = ''
   document.getElementById('route-search').value = ''
   allPeerRoutes = []
@@ -555,8 +566,8 @@ document.getElementById('peer-modal').addEventListener('click', e => {
 })
 
 function _setRouteTabActive(tabId) {
-  const inactive = 'px-3 py-1.5 text-xs rounded-lg text-gray-400 hover:bg-gray-800 transition-colors'
-  const active   = 'px-3 py-1.5 text-xs rounded-lg bg-blue-600 text-white transition-colors'
+  const inactive = 'px-3 py-1.5 text-xs rounded-lg text-gray-400 hover:bg-gray-800 transition-colors whitespace-nowrap'
+  const active   = 'px-3 py-1.5 text-xs rounded-lg bg-blue-600 text-white transition-colors whitespace-nowrap'
   ;['tab-advertised','tab-received','tab-detail'].forEach(id => {
     document.getElementById(id).className = id === tabId ? active : inactive
   })
@@ -581,11 +592,9 @@ async function loadPeerRoutes(type) {
   _setRouteTabActive(type === 'advertised' ? 'tab-advertised' : 'tab-received')
   _showRouteView()
 
-  if (type === 'advertised') {
-    document.getElementById('peer-modal-sub').textContent = '広報ルート（このルーターがこのピアへ送信しているルート）'
-  } else {
-    document.getElementById('peer-modal-sub').textContent = '受信ルート（このピアから受け取っているルート）'
-  }
+  document.getElementById('peer-modal-sub').textContent = type === 'advertised'
+    ? '広報ルート（このルーターがこのピアへ送信しているルート）'
+    : '受信ルート（このピアから受け取っているルート）'
 
   document.getElementById('route-search').value = ''
   allPeerRoutes = []
@@ -625,9 +634,8 @@ async function loadPeerDetail() {
     return
   }
 
-  // パネルを元のHTMLに戻してから値を埋める
   panel.innerHTML = `
-    <div class="grid grid-cols-2 gap-4">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
       <div class="bg-gray-800/60 rounded-lg p-4 space-y-2">
         <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">セッション</p>
         <div class="flex justify-between text-xs"><span class="text-gray-500">状態</span><span id="d-state" class="font-mono text-gray-200"></span></div>
@@ -642,7 +650,7 @@ async function loadPeerDetail() {
         <div class="flex justify-between text-xs"><span class="text-gray-500">確立回数</span><span id="d-conn-est" class="font-mono text-gray-200"></span></div>
         <div class="flex justify-between text-xs"><span class="text-gray-500">切断回数</span><span id="d-conn-drop" class="font-mono text-gray-200"></span></div>
         <div class="flex justify-between text-xs"><span class="text-gray-500">最終リセット</span><span id="d-reset-time" class="font-mono text-gray-200"></span></div>
-        <div class="flex justify-between text-xs"><span class="text-gray-500">リセット理由</span><span id="d-reset-reason" class="font-mono text-gray-200 text-right max-w-[55%]"></span></div>
+        <div class="flex justify-between text-xs gap-2"><span class="text-gray-500 flex-shrink-0">リセット理由</span><span id="d-reset-reason" class="font-mono text-gray-200 text-right"></span></div>
         <div class="flex justify-between text-xs"><span class="text-gray-500">ローカル</span><span id="d-local" class="font-mono text-gray-200"></span></div>
         <div class="flex justify-between text-xs"><span class="text-gray-500">リモート</span><span id="d-foreign" class="font-mono text-gray-200"></span></div>
       </div>
@@ -669,33 +677,30 @@ async function loadPeerDetail() {
     </div>`
 
   const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val ?? '—' }
-
-  set('d-state',       d.state)
-  set('d-uptime',      d.uptime)
-  set('d-router-id',   d.remote_router_id)
-  set('d-hold',        d.hold_time != null ? `${d.hold_time}s` : '—')
-  set('d-keepalive',   d.keepalive != null ? `${d.keepalive}s` : '—')
-  set('d-accepted',    d.accepted_prefixes != null ? d.accepted_prefixes.toLocaleString() : '—')
-  set('d-conn-est',    d.conn_established)
-  set('d-conn-drop',   d.conn_dropped)
-  set('d-reset-time',  d.last_reset_time)
-  set('d-reset-reason',d.last_reset_reason)
-  set('d-local',       d.local_port  != null ? `${d.local_host}:${d.local_port}`   : d.local_host)
-  set('d-foreign',     d.foreign_port != null ? `${d.foreign_host}:${d.foreign_port}` : d.foreign_host)
-  set('d-upd-sent',    d.updates_sent.toLocaleString())
-  set('d-upd-rcvd',    d.updates_rcvd.toLocaleString())
-  set('d-ka-sent',     d.keepalives_sent.toLocaleString())
-  set('d-ka-rcvd',     d.keepalives_rcvd.toLocaleString())
+  set('d-state',        d.state)
+  set('d-uptime',       d.uptime)
+  set('d-router-id',    d.remote_router_id)
+  set('d-hold',         d.hold_time    != null ? `${d.hold_time}s`    : '—')
+  set('d-keepalive',    d.keepalive    != null ? `${d.keepalive}s`    : '—')
+  set('d-accepted',     d.accepted_prefixes != null ? d.accepted_prefixes.toLocaleString() : '—')
+  set('d-conn-est',     d.conn_established)
+  set('d-conn-drop',    d.conn_dropped)
+  set('d-reset-time',   d.last_reset_time)
+  set('d-reset-reason', d.last_reset_reason)
+  set('d-local',        d.local_port   != null ? `${d.local_host}:${d.local_port}`     : d.local_host)
+  set('d-foreign',      d.foreign_port != null ? `${d.foreign_host}:${d.foreign_port}` : d.foreign_host)
+  set('d-upd-sent',     d.updates_sent.toLocaleString())
+  set('d-upd-rcvd',     d.updates_rcvd.toLocaleString())
+  set('d-ka-sent',      d.keepalives_sent.toLocaleString())
+  set('d-ka-rcvd',      d.keepalives_rcvd.toLocaleString())
 
   const capsEl = document.getElementById('d-caps')
   if (capsEl) {
-    if (d.capabilities && d.capabilities.length > 0) {
-      capsEl.innerHTML = d.capabilities.map(c =>
-        `<span class="px-2 py-0.5 rounded border text-xs bg-blue-900/40 text-blue-300 border-blue-800">${c}</span>`
-      ).join('')
-    } else {
-      capsEl.textContent = '—'
-    }
+    capsEl.innerHTML = d.capabilities?.length
+      ? d.capabilities.map(c =>
+          `<span class="px-2 py-0.5 rounded border text-xs bg-blue-900/40 text-blue-300 border-blue-800">${c}</span>`
+        ).join('')
+      : '—'
   }
 }
 
@@ -713,23 +718,22 @@ function filterPeerRoutes() {
 
   if (filtered.length === 0) {
     tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-gray-600 text-xs">${q ? '一致するルートなし' : 'ルートなし'}</td></tr>`
-    countEl.textContent = q
-      ? `0 / ${allPeerRoutes.length.toLocaleString()} ルート`
-      : '0 ルート'
+    countEl.textContent = q ? `0 / ${allPeerRoutes.length.toLocaleString()} ルート` : '0 ルート'
     return
   }
 
   tbody.innerHTML = filtered.map(r => `
-    <tr class="border-t border-gray-800 hover:bg-gray-800/50 transition-colors">
-      <td class="px-5 py-2 font-mono text-xs text-blue-300 cursor-pointer hover:text-blue-100"
-          onclick="copyText('${r.prefix}')" title="クリックでコピー">${r.prefix}</td>
-      <td class="px-4 py-2 font-mono text-xs text-gray-300 cursor-pointer hover:text-gray-100"
-          onclick="copyText('${r.next_hop}')" title="クリックでコピー">${r.next_hop}</td>
-      <td class="px-4 py-2 font-mono text-xs text-gray-400">${r.as_path || '—'}</td>
-      <td class="px-4 py-2 text-right text-xs font-mono text-gray-400">${r.local_pref || '—'}</td>
-      <td class="px-4 py-2 text-right text-xs font-mono text-gray-400">${r.metric}</td>
-      <td class="px-4 py-2 pr-5 text-center text-xs font-mono text-gray-400">${r.origin}</td>
+    <tr class="border-t border-gray-800 hover:bg-gray-800/50 active:bg-gray-800/50 transition-colors">
+      <td class="px-4 py-2.5 font-mono text-xs text-blue-300 cursor-pointer hover:text-blue-100 active:text-blue-100"
+          onclick="copyText('${r.prefix}')" title="タップでコピー">${r.prefix}</td>
+      <td class="px-3 py-2.5 font-mono text-xs text-gray-300 cursor-pointer hover:text-gray-100"
+          onclick="copyText('${r.next_hop}')">${r.next_hop}</td>
+      <td class="px-3 py-2.5 font-mono text-xs text-gray-400 hidden sm:table-cell">${r.as_path || '—'}</td>
+      <td class="px-3 py-2.5 text-right text-xs font-mono text-gray-400 hidden sm:table-cell">${r.local_pref || '—'}</td>
+      <td class="px-3 py-2.5 text-right text-xs font-mono text-gray-400">${r.metric}</td>
+      <td class="px-3 py-2.5 pr-4 text-center text-xs font-mono text-gray-400">${r.origin}</td>
     </tr>`).join('')
+
   countEl.textContent = q
     ? `${filtered.length.toLocaleString()} / ${allPeerRoutes.length.toLocaleString()} ルート`
     : `${allPeerRoutes.length.toLocaleString()} ルート`
@@ -744,7 +748,7 @@ async function copyText(text) {
 
 function showToast(msg) {
   const t = document.createElement('div')
-  t.className = 'fixed bottom-5 right-5 bg-gray-700 border border-gray-600 text-gray-200 text-xs px-3 py-2 rounded-lg z-50 fade-in shadow-lg'
+  t.className = 'fixed bottom-5 right-4 bg-gray-700 border border-gray-600 text-gray-200 text-xs px-3 py-2 rounded-lg z-50 fade-in shadow-lg'
   t.textContent = msg
   document.body.appendChild(t)
   setTimeout(() => t.remove(), 2000)
@@ -756,6 +760,7 @@ document.addEventListener('keydown', e => {
     closePeerModal()
     closeEditModal()
     closeAddModal()
+    closeSidebar()
   }
 })
 
