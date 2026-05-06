@@ -3,6 +3,7 @@ python main.py
 BGProuterの情報を入力して追加  
 
 vyos検証済み  
+モバイル対応  
 
 ![picture1](picture1.png)  
 
