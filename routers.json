@@ -1,19 +1,11 @@
 {
-  "eda3c875": {
-    "name": "JSNOG65023",
-    "host": "10.0.0.105",
+  "abecc138": {
+    "name": "demo",
+    "host": "",
     "port": 22,
-    "username": "vyos",
-    "password": "vyos",
-    "device_type": "linux"
-  },
-  "0f80ae5f": {
-    "name": "vyos",
-    "host": "10.0.0.106",
-    "port": 22,
-    "username": "vyos",
-    "password": "vyos",
+    "username": "",
+    "password": "",
     "ssh_key_path": "",
-    "device_type": "linux"
+    "device_type": "demo"
   }
 }

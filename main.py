@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from bgp.collector import fetch_bgp_summary, fetch_bgp_routes, fetch_peer_routes
+from bgp.collector import fetch_bgp_summary, fetch_bgp_routes, fetch_peer_routes, fetch_peer_detail
 
 app = FastAPI(title="BGP Monitor")
 
@@ -186,6 +186,17 @@ async def get_peer_routes(rid: str, neighbor: str, type: str = "advertised"):
     try:
         routes = await asyncio.to_thread(fetch_peer_routes, routers[rid], neighbor, type)
         return routes
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+@app.get("/api/routers/{rid}/peers/{neighbor}/detail")
+async def get_peer_detail(rid: str, neighbor: str):
+    if rid not in routers:
+        raise HTTPException(404, "Router not found")
+    try:
+        detail = await asyncio.to_thread(fetch_peer_detail, routers[rid], neighbor)
+        return detail
     except Exception as e:
         raise HTTPException(500, str(e))
 
