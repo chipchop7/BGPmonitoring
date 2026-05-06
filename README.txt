@@ -1,9 +1,9 @@
 pip install -r requirements.txt
 python main.py
 
-![picture1](https://github.com/chipchop7/BGPmonitoring/blob/689cc6eafc85012f7d157a13235d1bd0a5477d72/picture1.png)
+![picture1](https://github.com/user-attachments/assets/accd6bce-5eac-4188-8a16-7ae8211a7d13)
 
-![picture2](https://github.com/chipchop7/BGPmonitoring/blob/689cc6eafc85012f7d157a13235d1bd0a5477d72/picture2.png)
+![picture2]()
 
 
 BGProuterの情報を入力して追加
